@@ -1,0 +1,7 @@
+arrabot
+/home/nik/catkin_ws/devel/.private/arrabot/cmake.lock /home/nik/catkin_ws/devel/./cmake.lock
+/home/nik/catkin_ws/devel/.private/arrabot/lib/arrabot/scanV1 /home/nik/catkin_ws/devel/lib/arrabot/scanV1
+/home/nik/catkin_ws/devel/.private/arrabot/lib/arrabot/sort /home/nik/catkin_ws/devel/lib/arrabot/sort
+/home/nik/catkin_ws/devel/.private/arrabot/lib/pkgconfig/arrabot.pc /home/nik/catkin_ws/devel/lib/pkgconfig/arrabot.pc
+/home/nik/catkin_ws/devel/.private/arrabot/share/arrabot/cmake/arrabotConfig-version.cmake /home/nik/catkin_ws/devel/share/arrabot/cmake/arrabotConfig-version.cmake
+/home/nik/catkin_ws/devel/.private/arrabot/share/arrabot/cmake/arrabotConfig.cmake /home/nik/catkin_ws/devel/share/arrabot/cmake/arrabotConfig.cmake

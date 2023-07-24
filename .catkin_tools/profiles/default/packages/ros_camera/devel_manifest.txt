@@ -1,0 +1,5 @@
+ros_camera
+/home/nik/catkin_ws/devel/.private/ros_camera/cmake.lock /home/nik/catkin_ws/devel/./cmake.lock
+/home/nik/catkin_ws/devel/.private/ros_camera/lib/pkgconfig/ros_camera.pc /home/nik/catkin_ws/devel/lib/pkgconfig/ros_camera.pc
+/home/nik/catkin_ws/devel/.private/ros_camera/share/ros_camera/cmake/ros_cameraConfig.cmake /home/nik/catkin_ws/devel/share/ros_camera/cmake/ros_cameraConfig.cmake
+/home/nik/catkin_ws/devel/.private/ros_camera/share/ros_camera/cmake/ros_cameraConfig-version.cmake /home/nik/catkin_ws/devel/share/ros_camera/cmake/ros_cameraConfig-version.cmake

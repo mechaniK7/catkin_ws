@@ -1,0 +1,27 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/opt/ros/noetic/include/**",
+                "/usr/include/**",
+                "/usr/lib/gcc/x86_64-linux-gnu/9/include/**",
+                // "/home/nik/drone_ws/src/contour_planner/include/**",
+                // "/home/nik/drone_ws/src/packageInDev/cv_map_parser/include/**",
+                // "/home/nik/tb3_ws/src/turtlebot3_simulations/turtlebot3_fake/include/**",
+                // "/home/nik/tb3_ws/src/turtlebot3_simulations/turtlebot3_gazebo/include/**",
+                // "/home/nik/tb3_ws/src/turtlebot3/turtlebot3_slam/include/**",
+                "/usr/include/**",
+                // "/home/nik/tb3_ws/devel/include/**",
+                // "/home/nik/drone_ws/devel/include/**",
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "c17",
+            "cppStandard": "c++20",
+            "intelliSenseMode": "gcc-x64"
+        }
+    ],
+    "version": 4
+  } 
