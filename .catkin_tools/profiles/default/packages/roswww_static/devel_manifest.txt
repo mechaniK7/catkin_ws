@@ -1,0 +1,7 @@
+clover/roswww_static
+/home/nik/catkin_ws/devel/.private/roswww_static/cmake.lock /home/nik/catkin_ws/devel/./cmake.lock
+/home/nik/catkin_ws/devel/.private/roswww_static/lib/roswww_static/cmake.lock /home/nik/catkin_ws/devel/lib/roswww_static/cmake.lock
+/home/nik/catkin_ws/devel/.private/roswww_static/lib/roswww_static/update /home/nik/catkin_ws/devel/lib/roswww_static/update
+/home/nik/catkin_ws/devel/.private/roswww_static/lib/pkgconfig/roswww_static.pc /home/nik/catkin_ws/devel/lib/pkgconfig/roswww_static.pc
+/home/nik/catkin_ws/devel/.private/roswww_static/share/roswww_static/cmake/roswww_staticConfig-version.cmake /home/nik/catkin_ws/devel/share/roswww_static/cmake/roswww_staticConfig-version.cmake
+/home/nik/catkin_ws/devel/.private/roswww_static/share/roswww_static/cmake/roswww_staticConfig.cmake /home/nik/catkin_ws/devel/share/roswww_static/cmake/roswww_staticConfig.cmake
