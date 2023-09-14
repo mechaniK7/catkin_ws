@@ -134,6 +134,7 @@ include_directories(
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(scanV1 src/arrabot_node.cpp)
 add_executable(sort src/arrabot_node2.cpp)
+add_executable(first_task src/first_task.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -150,6 +151,9 @@ target_link_libraries(scanV1
   ${catkin_LIBRARIES}
 )
 target_link_libraries(sort
+  ${catkin_LIBRARIES}
+)
+target_link_libraries(first_task
   ${catkin_LIBRARIES}
 )
 
