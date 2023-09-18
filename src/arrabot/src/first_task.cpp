@@ -24,8 +24,11 @@ sensor_msgs::LaserScan msg_first_lid; // Используется в колбэ�
 sensor_msgs::LaserScan msg_new; // Хранятся данные зарисовки двери
 sensor_msgs::PointCloud cloud; // Облако точек. Содержит центры дверей
 sensor_msgs::PointCloud cloud2; // Облако точек. Отвечает за углы комнаты, нахождение диагоналей. Необходим для расчёта точек облёта.
+sensor_msgs::PointCloud cloud_filter;
 sensor_msgs::PointCloud room_p; // Облако точек. Отвечает за хранение точек облёта и их отправку в отдельный топик
 geometry_msgs::Point32 xyu; // Промежуточная переменная для конвертации центров дверей в облако
+geometry_msgs::Point32 left_door_point;
+geometry_msgs::Point32 right_door_point;
 geometry_msgs::Point32 room; // Промежуточная переменная для перадачи координат произвольных точек в облако 
 geometry_msgs::Point32 mid; // Промедуточная переменная для вычисления центра комнаты, хранения координат этой точки и отправки этих значений в облако
 
@@ -45,6 +48,15 @@ void inf(const sensor_msgs::LaserScan& msg) {
    msg_new.range_min = msg.range_min;
    msg_new.range_max = msg.range_max;
    msg_new.ranges.resize(msg.ranges.size());
+}
+
+// Конвертируем точки краёв дверей в облако точек
+void calculate_edge_door(const sensor_msgs::LaserScan& msg_new, float l_dr_i, float r_dr_i) { 
+    left_door_point.y = - msg_new.ranges[l_dr_i] * sin(l_dr_i * M_PI / 180);
+    left_door_point.x = - msg_new.ranges[l_dr_i] * cos(l_dr_i * M_PI / 180);
+
+    right_door_point.y = - msg_new.ranges[r_dr_i] * sin(r_dr_i * M_PI / 180);
+    right_door_point.x = - msg_new.ranges[r_dr_i] * cos(r_dr_i * M_PI / 180);
 }
 
 // Конвертируем точки центров дверей в облако точек
@@ -69,8 +81,8 @@ void points_drone(const sensor_msgs::PointCloud& cloud2, const geometry_msgs::Po
 }
 
 // Расчёт длины вектора
-float math_vec(const sensor_msgs::PointCloud& cloud2, int log1, int log2) { 
-    return sqrt( pow(cloud2.points.at(log1).x - cloud2.points.at(log2).x, 2.0) + pow(cloud2.points.at(log1).y - cloud2.points.at(log2).y, 2.0) );
+float math_vec(const sensor_msgs::PointCloud& cloud_log, int log1, int log2) { 
+    return sqrt( pow(cloud_log.points.at(log1).x - cloud_log.points.at(log2).x, 2.0) + pow(cloud_log.points.at(log1).y - cloud_log.points.at(log2).y, 2.0) );
 }
 
 // Сортировка точек облёта в облако
@@ -101,6 +113,7 @@ int main(int argc, char **argv) {
    msg_new.header.frame_id = "laser";
    cloud.header.frame_id = "laser";
    cloud2.header.frame_id = "laser";
+   cloud_filter.header.frame_id = "laser";
    room_p.header.frame_id = "laser";
    ros::NodeHandle n;
     
@@ -120,6 +133,7 @@ while (ros::ok()) {
    bool flag = true; // Флажок. Используется для расчёта углов комнаты
    cloud.points.clear();
    cloud2.points.clear();
+   cloud_filter.points.clear();
    room_p.points.clear();
    float ko = 0; // Дополнительный коэффициент для вычисления прогрессии и зарисовки дверей
     
@@ -164,22 +178,31 @@ while (ros::ok()) {
                koef_n = l_dr_i - r_dr_i - 1;
                koef_door = pow(r_dr / l_dr, 1 / (koef_n - 1));
                ///////////////////// +
+         
+         calculate_edge_door(msg_new, l_dr_i, r_dr_i);
+         cloud_filter.points.push_back(left_door_point);
+         cloud_filter.points.push_back(right_door_point);
 
-               // Зарисовываем дверь /
+         cout << "DLINA DVERNOGO PROEMA SIZE --> " << cloud_filter.points.size() << endl;
+         float length_of_door_vec = math_vec(cloud_filter, 0, 1);
+         cout << "DLINA DVERNOGO PROEMA --> " << length_of_door_vec << endl;
+
+         // Зарисовываем дверь /
          for (int i = l_dr_i+1; i >= r_dr_i; i--) {
-         if (msg_new.ranges[i] == 5) {
-         ko *= koef_door;
-         msg_new.ranges[i] = ko;
+            if (msg_new.ranges[i] == 5) {
+            ko *= koef_door;
+            msg_new.ranges[i] = ko;
+            }
          }
-               }
-               ///////////////////// /
+         cloud_filter.points.clear();
+         ///////////////////// /
                
       // Конвертируем значения в PointCloud
       raschet_door(msg_new, l_dr_i, r_dr_i);
       cloud.points.push_back(xyu);
       //////////////////////////////////////
-
          }
+
          /////////////////////////-----------------------
       }
          
