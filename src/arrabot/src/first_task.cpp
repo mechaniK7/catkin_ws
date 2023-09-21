@@ -188,18 +188,22 @@ while (ros::ok()) {
          cout << "DLINA DVERNOGO PROEMA --> " << length_of_door_vec << endl;
 
          // Зарисовываем дверь /
-         for (int i = l_dr_i+1; i >= r_dr_i; i--) {
-            if (msg_new.ranges[i] == 5) {
-            ko *= koef_door;
-            msg_new.ranges[i] = ko;
+         //if (length_of_door_vec > 1.2 && length_of_door_vec < 2) {
+            for (int i = l_dr_i+1; i >= r_dr_i; i--) {
+               if (msg_new.ranges[i] == 5) {
+               ko *= koef_door;
+               msg_new.ranges[i] = ko;
+               }
             }
-         }
-         cloud_filter.points.clear();
+            cloud_filter.points.clear();
+         //}
          ///////////////////// /
                
       // Конвертируем значения в PointCloud
-      raschet_door(msg_new, l_dr_i, r_dr_i);
-      cloud.points.push_back(xyu);
+      if (length_of_door_vec > 1.2 && length_of_door_vec < 2) {
+         raschet_door(msg_new, l_dr_i, r_dr_i);
+         cloud.points.push_back(xyu);
+      }
       //////////////////////////////////////
          }
 
