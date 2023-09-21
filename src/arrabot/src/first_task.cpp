@@ -140,14 +140,14 @@ while (ros::ok()) {
    if (inf_done_at_least_once) {
 
       for (int i = 358; i >= 1; i--) {
-         if (msg_first_lid.ranges[i] > 5) {
-         msg_new.ranges[i] = 5;
+         if (msg_first_lid.ranges[i] > 7) {
+         msg_new.ranges[i] = 7;
          }
          else msg_new.ranges[i] = msg_first_lid.ranges[i]; 
          cout << "LOGS " << i << " --> " << msg_new.ranges[i] << endl;
          
          // Определяем левый край двери
-         if ( (msg_new.ranges[i] != msg_new.ranges[i+1]) && (msg_new.ranges[i] == 5) ) {
+         if ( msg_new.ranges[i] - msg_new.ranges[i+1] > 1 ) {
          l_dr = msg_new.ranges[i+2];
          ko = l_dr;
          l_dr_i = i+2;
@@ -169,10 +169,10 @@ while (ros::ok()) {
          ///////////////////////
 
          // Определяем правый край двери ------------------------
-         if ( (msg_new.ranges[i] != msg_new.ranges[i+1]) && (msg_new.ranges[i+1] == 5) ) {
-         r_dr = msg_new.ranges[i-1];
-         r_dr_i = i-1;
-         cout << "    Praviy kriy №" << i-1 << " --> " << r_dr << endl;
+         if ( ( abs(msg_new.ranges[i+1] - msg_new.ranges[i+2]) < 1 ) && (msg_new.ranges[i+1] - msg_new.ranges[i] > 2) ) {
+         r_dr = msg_new.ranges[i];
+         r_dr_i = i;
+         cout << "    Praviy kriy №" << i << " --> " << r_dr << endl;
          
                // Считаем все коеффициенты по формулам +
                koef_n = l_dr_i - r_dr_i - 1;
@@ -190,10 +190,10 @@ while (ros::ok()) {
          // Зарисовываем дверь /
          //if (length_of_door_vec > 1.2 && length_of_door_vec < 2) {
             for (int i = l_dr_i+1; i >= r_dr_i; i--) {
-               if (msg_new.ranges[i] == 5) {
+               //if (msg_new.ranges[i] == 5) {
                ko *= koef_door;
                msg_new.ranges[i] = ko;
-               }
+               //}
             }
             cloud_filter.points.clear();
          //}
