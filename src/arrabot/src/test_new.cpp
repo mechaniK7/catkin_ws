@@ -8,10 +8,15 @@
 #include <vector>
 #include <iostream>
 
+using std::cout, std::endl;
+std::vector <int> vec_for_index(4, 1); 
 bool inf_done_at_least_once = false;
+int i_global_for_vec = 1;
+int iteration = 0;
 
 sensor_msgs::LaserScan msg_first_lid; // Используется в колбэке роса для получения значений с лидара на прямую
-sensor_msgs::PointCloud cloud;
+sensor_msgs::PointCloud cloud; // Хранит полное облако точек полученное с лидара
+sensor_msgs::PointCloud cloud_search_vec;
 geometry_msgs::Point32 log_point;
 
 // Колбэк роса для передачи на прямую значений с лидара
@@ -20,38 +25,84 @@ void cd(const sensor_msgs::LaserScan& msg) {
    if (!inf_done_at_least_once) inf_done_at_least_once = true;
 }
 
+// Перевод лазера в облако точек
 void calc_to_cloud(const sensor_msgs::LaserScan& msg_log, float log_i) { 
     log_point.y = msg_log.ranges[log_i] * sin(msg_log.angle_increment * log_i);
     log_point.x = msg_log.ranges[log_i] * cos(msg_log.angle_increment * log_i);
 }
 
+// Расчёт углового коэффикиента по координатам двух точек
+float calc_k_koef(const sensor_msgs::PointCloud& cloud_log, int log1, int log2) {
+    return ( (cloud_log.points.at(log2).y - cloud_log.points.at(log1).y) / (cloud_log.points.at(log2).x - cloud_log.points.at(log1).x) );
+}
+
+// Сдвиг индексов лучей в поисковм векторе
+void shift_vector(int log1) {
+    for (int i = 0; i < vec_for_index.size() - 1; i++) {
+        vec_for_index.at(i) = vec_for_index.at(i+1); 
+    }
+    vec_for_index.at(vec_for_index.size() - 1) = log1;
+    for (int i = 0; i < vec_for_index.size(); i++) { // Вывод данных из вектора
+        cout << vec_for_index[i] << ", ";
+    }
+    cout << endl;
+}
+
+
+
+////////////////////////////////////////_______////_MAIN_////_______//////////////////////////////////////////////////////////////
 int main(int argc, char **argv) {
     ros::init(argc, argv, "test_new");
     cloud.header.frame_id = "laser";
+    cloud_search_vec.header.frame_id = "laser";
     ros::NodeHandle n;
 
     ros::Subscriber sub = n.subscribe("scan", 1000, cd);
     ros::Publisher convert = n.advertise<sensor_msgs::PointCloud>("poins_from_laser", 100);
+    ros::Publisher search_sys = n.advertise<sensor_msgs::PointCloud>("search_sys", 100);
 
     ros::Rate loop_rate(5);
     
     while (ros::ok()) {
 
-        using std::cout, std::endl;
         cloud.points.clear();
+        cloud_search_vec.points.clear();
 
         if (inf_done_at_least_once) {
-            cout << msg_first_lid.ranges.size() << endl;
-            for (int i = 1; i <= msg_first_lid.ranges.size(); i++) {
+            
+            for (int i = 0; i < msg_first_lid.ranges.size(); i++) {
                 calc_to_cloud(msg_first_lid, i);
                 cloud.points.push_back(log_point);
             }
-            convert.publish(cloud); 
+            
+            shift_vector(i_global_for_vec);
+            for (int i = 0; i < vec_for_index.size(); i++) {
+                geometry_msgs::Point32 log_search_point = cloud.points.at(vec_for_index[i]);
+                cloud_search_vec.points.push_back(log_search_point);
+            }
 
+            if (i_global_for_vec < cloud.points.size() - 1) i_global_for_vec++; else { i_global_for_vec = 1; cout << "OK  - 360" << endl; }
+
+
+
+
+
+
+            convert.publish(cloud); 
+            search_sys.publish(cloud_search_vec); 
         }
 
-        ros::spinOnce();
-        loop_rate.sleep();
+
+
+
+
+
+        if (iteration % 100 == 0) {
+            loop_rate.sleep();
+            ros::spinOnce(); 
+            iteration = 0;
+        } 
+        iteration++;
     }
     return 0;
 }
