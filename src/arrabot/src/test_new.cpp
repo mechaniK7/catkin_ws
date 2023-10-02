@@ -9,7 +9,7 @@
 #include <iostream>
 
 using std::cout, std::endl;
-std::vector <int> vec_for_index(4, 1); 
+std::vector <int> vec_for_index(9, 1); // Размер вектора строго больше/равен - 9
 bool inf_done_at_least_once = false;
 int i_global_for_vec = 1;
 int iteration = 0;
@@ -18,6 +18,8 @@ sensor_msgs::LaserScan msg_first_lid; // Используется в колбэ�
 sensor_msgs::PointCloud cloud; // Хранит полное облако точек полученное с лидара
 sensor_msgs::PointCloud cloud_search_vec;
 geometry_msgs::Point32 log_point;
+geometry_msgs::Point32 mid_from_vec_by_2p_FIRST;
+geometry_msgs::Point32 mid_from_vec_by_2p_SECOND;
 
 // Колбэк роса для передачи на прямую значений с лидара
 void cd(const sensor_msgs::LaserScan& msg) {
@@ -36,17 +38,30 @@ float calc_k_koef(const sensor_msgs::PointCloud& cloud_log, int log1, int log2) 
     return ( (cloud_log.points.at(log2).y - cloud_log.points.at(log1).y) / (cloud_log.points.at(log2).x - cloud_log.points.at(log1).x) );
 }
 
+// Расчёт координаты точки в середине точек взятых из поискового вектора
+void calc_mid_from_vec_by_2p(const sensor_msgs::PointCloud& cloud_log, int log_1_point, int log_2_point, int log_3_point, int log_4_point) {
+    mid_from_vec_by_2p_FIRST.x = (cloud_log.points.at(log_1_point).x + cloud_log.points.at(log_2_point).x) / 2;
+    mid_from_vec_by_2p_FIRST.y = (cloud_log.points.at(log_1_point).y + cloud_log.points.at(log_2_point).y) / 2;
+    mid_from_vec_by_2p_SECOND.x = (cloud_log.points.at(log_3_point).x + cloud_log.points.at(log_4_point).x) / 2;
+    mid_from_vec_by_2p_SECOND.y = (cloud_log.points.at(log_3_point).y + cloud_log.points.at(log_4_point).y) / 2;
+}
+
+float calc_k_from_vec_points() {
+    return ( (mid_from_vec_by_2p_SECOND.y - mid_from_vec_by_2p_FIRST.y) / (mid_from_vec_by_2p_SECOND.x - mid_from_vec_by_2p_FIRST.x) );
+}
+
 // Сдвиг индексов лучей в поисковм векторе
 void shift_vector(int log1) {
     for (int i = 0; i < vec_for_index.size() - 1; i++) {
         vec_for_index.at(i) = vec_for_index.at(i+1); 
     }
     vec_for_index.at(vec_for_index.size() - 1) = log1;
-    for (int i = 0; i < vec_for_index.size(); i++) { // Вывод данных из вектора
+    /*for (int i = 0; i < vec_for_index.size(); i++) { // Вывод данных из вектора
         cout << vec_for_index[i] << ", ";
     }
-    cout << endl;
+    cout << endl;*/
 }
+
 
 
 
@@ -83,7 +98,7 @@ int main(int argc, char **argv) {
 
             if (i_global_for_vec < cloud.points.size() - 1) i_global_for_vec++; else { i_global_for_vec = 1; cout << "OK  - 360" << endl; }
 
-
+            calc_mid_from_vec_by_2p(cloud, 0, 3, vec_for_index.size()-4, vec_for_index.size()-1);
 
 
 
@@ -97,7 +112,7 @@ int main(int argc, char **argv) {
 
 
 
-        if (iteration % 100 == 0) {
+        if (iteration % 100 == 0) { // Было 100
             loop_rate.sleep();
             ros::spinOnce(); 
             iteration = 0;
