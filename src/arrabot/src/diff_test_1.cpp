@@ -2,8 +2,6 @@
 #include <geometry_msgs/Twist.h>
 #include <sensor_msgs/LaserScan.h>
 #include <sensor_msgs/PointCloud.h> 
-#include <tf/transform_listener.h> 
-#include <laser_geometry/laser_geometry.h> 
 #include <math.h>
 #include <vector>
 #include <iostream>
@@ -32,7 +30,7 @@ geometry_msgs::Point32 calc_to_cloud(const sensor_msgs::LaserScan& msg_log, floa
 }
 
 // Перевод из облака точек в лазер скан
-float calc_to_laser(const geometry_msgs::Point32& points_log, const sensor_msgs::LaserScan& msg_log, float log_i) { 
+float calc_to_laser(geometry_msgs::Point32 points_log) { 
     float length;
 
     length = sqrt(pow(points_log.x, 2) + pow(points_log.y, 2));
@@ -47,11 +45,13 @@ void cd(const sensor_msgs::LaserScan& msg) {
 }
 
 // Заполнение пустот в дверях 1
-/*sensor_msgs::LaserScan filling_doors(sensor_msgs::LaserScan scan, int current_indx_laser, int l_door_indx, int r_door_indx, int current_angle) {
+float get_door_point_range(sensor_msgs::LaserScan scan, int current_indx_laser, int l_door_indx, int r_door_indx) {
     geometry_msgs::Point32 log_coords_final;
     
     geometry_msgs::Point32 func_coords_l_pt1 = calc_to_cloud(scan, l_door_indx);
     geometry_msgs::Point32 func_coords_r_pt2 = calc_to_cloud(scan, r_door_indx);
+
+    double current_angle = scan.angle_increment * current_indx_laser;
 
     log_coords_final.x = - (func_coords_l_pt1.x * func_coords_r_pt2.y - func_coords_r_pt2.x * func_coords_l_pt1.y) * cos(current_angle) / (cos(current_angle) * func_coords_l_pt1.y - cos(current_angle) * func_coords_r_pt2.y - sin(current_angle) * func_coords_l_pt1.x + sin(current_angle) * func_coords_r_pt2.x);
     log_coords_final.y = - (func_coords_l_pt1.x * func_coords_r_pt2.y - func_coords_r_pt2.x * func_coords_l_pt1.y) * sin(current_angle) / (cos(current_angle) * func_coords_l_pt1.y - cos(current_angle) * func_coords_r_pt2.y - sin(current_angle) * func_coords_l_pt1.x + sin(current_angle) * func_coords_r_pt2.x);
@@ -59,12 +59,12 @@ void cd(const sensor_msgs::LaserScan& msg) {
     cout << "X -- > " << log_coords_final.x << endl;
     cout << "Y -- > " << log_coords_final.y << endl;
 
-    float length_laser = calc_to_laser(log_coords_final, scan, current_indx_laser);
+    float length_laser = calc_to_laser(log_coords_final);
     cout << "DLOINA -- > " << length_laser << endl;
     updated_scan.ranges.at(current_indx_laser) = length_laser;
 
-    return updated_scan;
-}*/
+    return length_laser;
+}
 
 // Отделение произвольного сегмента от всех значений лазер скана
 sensor_msgs::LaserScan cutout_scan_segment(sensor_msgs::LaserScan scan, double min_angle, double max_angle) {
@@ -104,12 +104,11 @@ float diff_laser_inv(sensor_msgs::LaserScan scan, int log_i) {
 
 
 
-
 ////////////////////////////////////////_______////_MAIN_////_______//////////////////////////////////////////////////////////////
-int main(int argc, char **argv) {
+int main(int argc, char **argv) 
+{
     ros::init(argc, argv, "diff_test_1");
-    sensor_msgs::LaserScan filling_doors_scan;
-    filling_doors_scan.header.frame_id = "laser";
+
     cut_laser.header.frame_id = "laser";
     cloud.header.frame_id = "laser";
 
@@ -123,7 +122,8 @@ int main(int argc, char **argv) {
     ros::Rate loop_rate(5); 
 
     while (ros::ok()) {
-
+        sensor_msgs::LaserScan filling_doors_scan = msg_first_lid;
+        filling_doors_scan.header.frame_id = "laser";
         int schet_door = 0;
         int right_dot_i_door = 0;
         int left_dot_i_door = 0;
@@ -134,7 +134,7 @@ int main(int argc, char **argv) {
 
             float ko = 0;
             
-            cut_laser = cutout_scan_segment(msg_first_lid, 160.0*M_PI/180, 260.0*M_PI/180);
+            cut_laser = cutout_scan_segment(msg_first_lid, 100.0*M_PI/180, 260.0*M_PI/180);
 
             for (int i = 0; i < cut_laser.ranges.size()-1; i++) {
                 if (std::isfinite(cut_laser.ranges.at(i))) {
@@ -179,24 +179,23 @@ int main(int argc, char **argv) {
 
                 updated_scan = cut_laser;
 
-                // Считаем все коеффициенты по формулам
-                ko = updated_scan.ranges.at(right_dot_i_door);
-                koef_n = left_dot_i_door+1 - right_dot_i_door - 1;
-                koef_door = pow(updated_scan.ranges.at(left_dot_i_door+1) / updated_scan.ranges.at(right_dot_i_door), 1 / (koef_n));
-                cout << right_dot_i_door <<" - dlin --> " << updated_scan.ranges.at(right_dot_i_door) << endl;
-                cout << left_dot_i_door <<" - dlin --> " << updated_scan.ranges.at(left_dot_i_door) << endl;
+                // // Считаем все коеффициенты по формулам
+                // ko = updated_scan.ranges.at(right_dot_i_door);
+                // koef_n = left_dot_i_door+1 - right_dot_i_door - 1;
+                // koef_door = pow(updated_scan.ranges.at(left_dot_i_door+1) / updated_scan.ranges.at(right_dot_i_door), 1 / (koef_n));
+                // cout << right_dot_i_door <<" - dlin --> " << updated_scan.ranges.at(right_dot_i_door) << endl;
+                // cout << left_dot_i_door <<" - dlin --> " << updated_scan.ranges.at(left_dot_i_door) << endl;
 
-                // Зарисовываем дверь
-                for (int i = right_dot_i_door; i <= left_dot_i_door + 1; i++) {
-                    ko *= koef_door;
-                    cout << i <<" - ko --> " << ko << endl;
-                    updated_scan.ranges[i] = ko;
+                // // Зарисовываем дверь
+                // for (int i = right_dot_i_door; i <= left_dot_i_door + 1; i++) {
+                //     ko *= koef_door;
+                //     cout << i <<" - ko --> " << ko << endl;
+                //     updated_scan.ranges[i] = ko;
+                // }
+                for (int i = right_dot_i_door; i <= left_dot_i_door; i++) {
+                    filling_doors_scan.ranges.at(i) = get_door_point_range(cut_laser, i, left_dot_i_door, right_dot_i_door);
                 }
-                /*for (int i = right_dot_i_door; i <= left_dot_i_door; i++) {
-                    if (std::isfinite(cut_laser.ranges.at(i))) {
-                        filling_doors_scan = filling_doors(cut_laser, i, left_dot_i_door, right_dot_i_door, cut_laser.angle_increment * i);
-                    }
-                }*/
+                ROS_INFO_STREAM(right_dot_i_door << left_dot_i_door);
 
             }
 
