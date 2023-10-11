@@ -1,5 +1,0 @@
-Pose-Estimation-Aruco-Marker-Ros/my_aruco_tracker
-/home/nik/catkin_ws/devel/.private/my_aruco_tracker/cmake.lock /home/nik/catkin_ws/devel/./cmake.lock
-/home/nik/catkin_ws/devel/.private/my_aruco_tracker/lib/pkgconfig/my_aruco_tracker.pc /home/nik/catkin_ws/devel/lib/pkgconfig/my_aruco_tracker.pc
-/home/nik/catkin_ws/devel/.private/my_aruco_tracker/share/my_aruco_tracker/cmake/my_aruco_trackerConfig-version.cmake /home/nik/catkin_ws/devel/share/my_aruco_tracker/cmake/my_aruco_trackerConfig-version.cmake
-/home/nik/catkin_ws/devel/.private/my_aruco_tracker/share/my_aruco_tracker/cmake/my_aruco_trackerConfig.cmake /home/nik/catkin_ws/devel/share/my_aruco_tracker/cmake/my_aruco_trackerConfig.cmake

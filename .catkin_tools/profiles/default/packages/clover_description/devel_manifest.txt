@@ -1,5 +1,0 @@
-clover/clover_description
-/home/nik/catkin_ws/devel/.private/clover_description/cmake.lock /home/nik/catkin_ws/devel/./cmake.lock
-/home/nik/catkin_ws/devel/.private/clover_description/lib/pkgconfig/clover_description.pc /home/nik/catkin_ws/devel/lib/pkgconfig/clover_description.pc
-/home/nik/catkin_ws/devel/.private/clover_description/share/clover_description/cmake/clover_descriptionConfig.cmake /home/nik/catkin_ws/devel/share/clover_description/cmake/clover_descriptionConfig.cmake
-/home/nik/catkin_ws/devel/.private/clover_description/share/clover_description/cmake/clover_descriptionConfig-version.cmake /home/nik/catkin_ws/devel/share/clover_description/cmake/clover_descriptionConfig-version.cmake
