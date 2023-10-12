@@ -1,142 +1,217 @@
-// В этой проге точки для угловых коэффиуиентов выбираются в центре рассматриваемых промежутков (Эти точки отсутствуют в поинт клауде,
-// их координаты вычисляются математически)
-
+// Финальный вариант программы для 1 и 2 задания (ровная заливка дверных проёмов с выводом координат точек двери)
 #include <ros/ros.h>
 #include <geometry_msgs/Twist.h>
 #include <sensor_msgs/LaserScan.h>
 #include <sensor_msgs/PointCloud.h> 
-#include <tf/transform_listener.h> 
-#include <laser_geometry/laser_geometry.h> 
+#include <geometry_msgs/TwistStamped.h>
+#include <geometry_msgs/PoseStamped.h>
+#include <drone_msgs/Door.h>
 #include <math.h>
 #include <vector>
 #include <iostream>
+#include "euler_angles.hpp"
 
 using std::cout, std::endl;
-std::vector <int> vec_for_index(12, 1); // Размер вектора строго больше/равен - 9
-bool inf_done_at_least_once = false;
-int i_global_for_vec = 1;
-int iteration = 0;
+bool inf_done_at_least_once = false; // Ожидание поступления значений лазер скана
+bool flag_to_check_frame_right = false; // Флаг для определения правого края двери
+bool flag_to_check_flame_left = false; // Флаг для определения левого края двери
 
+EulerAngles curr_yaw;
+sensor_msgs::PointCloud cloud; // Содержит координаты: indx - 0 - Левый край двери; indx - 1 - Правый край двери; indx - 2 - Центр двери
 sensor_msgs::LaserScan msg_first_lid; // Используется в колбэке роса для получения значений с лидара на прямую
-sensor_msgs::PointCloud cloud; // Хранит полное облако точек полученное с лидара
-sensor_msgs::PointCloud cloud_search_vec;
-geometry_msgs::Point32 log_point;
-geometry_msgs::Point32 mid_from_vec_by_2p_FIRST;
-geometry_msgs::Point32 mid_from_vec_by_2p_SECOND;
+sensor_msgs::LaserScan cut_laser; // Содержит лидарные точки с вырезанным сегментом по произвольным углам
+drone_msgs::Door door_info;
+geometry_msgs::PoseStamped curr_position; // Координаты текущей позиции
+
+
+// Перевод лазера в облако точек
+geometry_msgs::Point32 calc_to_cloud(const sensor_msgs::LaserScan& msg_log, float log_i) { 
+    geometry_msgs::Point32 log_point;
+
+    log_point.y = - msg_log.ranges[log_i] * sin(msg_log.angle_increment * log_i);
+    log_point.x = - msg_log.ranges[log_i] * cos(msg_log.angle_increment * log_i);
+
+    return log_point;
+}
+
+void pose_cd(const geometry_msgs::PoseStamped& msg) {
+    curr_position = msg;
+}
 
 // Колбэк роса для передачи на прямую значений с лидара
 void cd(const sensor_msgs::LaserScan& msg) {
    msg_first_lid = msg;
+
    if (!inf_done_at_least_once) inf_done_at_least_once = true;
 }
 
-// Перевод лазера в облако точек
-void calc_to_cloud(const sensor_msgs::LaserScan& msg_log, float log_i) { 
-    log_point.y = msg_log.ranges[log_i] * sin(msg_log.angle_increment * log_i);
-    log_point.x = msg_log.ranges[log_i] * cos(msg_log.angle_increment * log_i);
+// Расчёт длины вектора
+float math_vec(const sensor_msgs::PointCloud& cloud_log, int log1, int log2) { 
+    return sqrt( pow(cloud_log.points.at(log1).x - cloud_log.points.at(log2).x, 2.0) + pow(cloud_log.points.at(log1).y - cloud_log.points.at(log2).y, 2.0) );
 }
 
-// Расчёт углового коэффикиента по координатам двух точек
-float calc_k_koef(const sensor_msgs::PointCloud& cloud_log, int log1, int log2) {
-    return ( (cloud_log.points.at(log2).y - cloud_log.points.at(log1).y) / (cloud_log.points.at(log2).x - cloud_log.points.at(log1).x) );
+// Перевод из облака точек в лазер скан
+float calc_to_laser(geometry_msgs::Point32 points_log) { 
+    float length;
+
+    length = sqrt(pow(points_log.x, 2) + pow(points_log.y, 2));
+
+    return length;
 }
 
-// Расчёт координаты точки в середине точек взятых из поискового вектора
-/*void calc_mid_from_vec_by_2p(const sensor_msgs::PointCloud& cloud_log, int log_1_point, int log_2_point, int log_3_point, int log_4_point) {
-    mid_from_vec_by_2p_FIRST.x = (cloud_log.points.at(log_1_point).x + cloud_log.points.at(log_2_point).x) / 2;
-    mid_from_vec_by_2p_FIRST.y = (cloud_log.points.at(log_1_point).y + cloud_log.points.at(log_2_point).y) / 2;
-    mid_from_vec_by_2p_SECOND.x = (cloud_log.points.at(log_3_point).x + cloud_log.points.at(log_4_point).x) / 2;
-    mid_from_vec_by_2p_SECOND.y = (cloud_log.points.at(log_3_point).y + cloud_log.points.at(log_4_point).y) / 2;
-}*/
 
-/*float calc_k_from_vec_points() {
-    return ( (mid_from_vec_by_2p_SECOND.y - mid_from_vec_by_2p_FIRST.y) / (mid_from_vec_by_2p_SECOND.x - mid_from_vec_by_2p_FIRST.x) );
-}*/
+// Расчёт координаты точки в середине точек взятых произвольно
+geometry_msgs::Point32 calc_mid_by_2p(const sensor_msgs::PointCloud& cloud_log, int log_1_point, int log_2_point) {
+    geometry_msgs::Point32 coord_pt;
+    
+    coord_pt.x = (cloud_log.points.at(log_1_point).x + cloud_log.points.at(log_2_point).x) / 2;
+    coord_pt.y = (cloud_log.points.at(log_1_point).y + cloud_log.points.at(log_2_point).y) / 2;
 
-// Сдвиг индексов лучей в поисковм векторе
-void shift_vector(int log1) {
-    for (int i = 0; i < vec_for_index.size() - 1; i++) {
-        vec_for_index.at(i) = vec_for_index.at(i+1); 
+    return coord_pt;
+}
+
+// Отделение произвольного сегмента от всех значений лазер скана
+sensor_msgs::LaserScan cutout_scan_segment(sensor_msgs::LaserScan scan, double min_angle, double max_angle) {
+    sensor_msgs::LaserScan segment_scan;
+    segment_scan = scan;
+
+    segment_scan.ranges.clear();
+    int max_index = int (max_angle / scan.angle_increment);
+    int min_index = int (min_angle / scan.angle_increment);
+
+    int c = 0;
+
+    for (int i = 0; i < scan.ranges.size(); ++i) {
+        if (i < max_index and i > min_index) {
+            segment_scan.ranges.push_back(scan.ranges.at(i));
+            c++;
+            //cout << i << " - dl_cut -- > " << scan.ranges.at(i) << endl;
+        }
+        else {
+            segment_scan.ranges.push_back(INFINITY);
+        }
     }
-    vec_for_index.at(vec_for_index.size() - 1) = log1;
-    for (int i = 0; i < vec_for_index.size(); i++) { // Вывод данных из вектора
-        cout << vec_for_index[i] << ", ";
-    }
-    cout << endl;
+
+    // ROS_INFO_STREAM("effective segment_scan.ranges.size(): " << c);
+
+    return segment_scan;
 }
 
-float sr_k_from_vec(const sensor_msgs::PointCloud& cloud_log, int i_p1, int i_p2, int i_p3, int i_p4, int i_p5, int i_p6, int i_p7, int i_p8) {
-    return ( (calc_k_koef(cloud_log, i_p1, i_p2) + calc_k_koef(cloud_log, i_p3, i_p4) + calc_k_koef(cloud_log, i_p5, i_p6) + calc_k_koef(cloud_log, i_p7, i_p8)) / 4 );
+// Дифференцирование значений лазер скана
+float diff_laser(sensor_msgs::LaserScan scan, int log_i) {
+    return (scan.ranges.at(log_i+1) - scan.ranges.at(log_i));
 }
 
+// Инвертированное дифференцирование значений лазер скана
+float diff_laser_inv(sensor_msgs::LaserScan scan, int log_i) {
+    return (scan.ranges.at(log_i-1) - scan.ranges.at(log_i));
+}
 
 
 
 ////////////////////////////////////////_______////_MAIN_////_______//////////////////////////////////////////////////////////////
 int main(int argc, char **argv) {
+
     ros::init(argc, argv, "test_2");
+
+    cut_laser.header.frame_id = "laser";
     cloud.header.frame_id = "laser";
-    cloud_search_vec.header.frame_id = "laser";
+
+    door_info.header.frame_id = "laser";
+    //door_info.header.stamp = ros::Time::now();
+
+
     ros::NodeHandle n;
 
-    ros::Subscriber sub = n.subscribe("scan", 1000, cd);
-    ros::Publisher convert = n.advertise<sensor_msgs::PointCloud>("poins_from_laser", 100);
-    ros::Publisher search_sys = n.advertise<sensor_msgs::PointCloud>("search_sys", 100);
+    ros::Subscriber sub = n.subscribe("scan", 1000, cd); // Подписчик на лазер скан
+    ros::Subscriber sub2 = n.subscribe("/mavros/local_position/pose", 1000, pose_cd);
+    ros::Publisher cut = n.advertise<sensor_msgs::LaserScan>("cut_laser_pub", 100); // Сегмент лазер скана
+    ros::Publisher frame_point = n.advertise<sensor_msgs::PointCloud>("frame_lrm_points", 100); // Координаты точек рамки
 
-    ros::Rate loop_rate(3); //5
-    
+    ros::Rate loop_rate(5); 
+
     while (ros::ok()) {
 
+        int schet_frame = 0;
+        int right_dot_i_frame = 0;
+        int left_dot_i_frame = 0;
         cloud.points.clear();
-        cloud_search_vec.points.clear();
         cout << endl;
 
         if (inf_done_at_least_once) {
             
-            for (int i = 0; i < msg_first_lid.ranges.size(); i++) {
-                calc_to_cloud(msg_first_lid, i);
-                cloud.points.push_back(log_point);
+            // Вырезаем сегмент лазер скана и сохраняем
+            cut_laser = cutout_scan_segment(msg_first_lid, 100.0*M_PI/180, 260.0*M_PI/180);
+
+            // Поиск правого края рамки
+            for (int i = 0; i < cut_laser.ranges.size()-1; i++) {
+                if (std::isfinite(cut_laser.ranges.at(i))) {
+                    float diff_znch = diff_laser(cut_laser, i);
+                    if (diff_znch > 1 && flag_to_check_frame_right == false && cut_laser.ranges.at(i) <= 2.5) {
+                        flag_to_check_frame_right = true;
+                        right_dot_i_frame = i;
+                    }
+                }
             }
-            
-            shift_vector(i_global_for_vec);
-            for (int i = 0; i < vec_for_index.size(); i++) {
-                geometry_msgs::Point32 log_search_point = cloud.points.at(vec_for_index[i]);
-                cloud_search_vec.points.push_back(log_search_point);
+
+            // Поиск левого края рамки
+            for (int i = cut_laser.ranges.size()-1; i > 1; i--) {
+                if (std::isfinite(cut_laser.ranges.at(i))) {
+                    float diff_znch_inv = diff_laser_inv(cut_laser, i);
+                    if (diff_znch_inv > 1 && flag_to_check_flame_left == false && flag_to_check_frame_right == true && cut_laser.ranges.at(i) <= 2.5) {
+                        flag_to_check_flame_left = true;
+                        left_dot_i_frame = i;
+                    }
+                }
             }
 
-            if (i_global_for_vec < cloud.points.size() - 1) i_global_for_vec++; else { i_global_for_vec = 1; cout << "OK  - 360" << endl; }
+            // Обработка рамки
+            if (flag_to_check_frame_right == true && flag_to_check_flame_left == true) {
+                geometry_msgs::Point32 func_point; // Контейнер для координат точек рамки
+                bool mid_pt_flag = false;
 
-            float k_door = calc_k_koef(cloud, vec_for_index.at(6), vec_for_index.at(vec_for_index.size()-1));
-            float sr_k = sr_k_from_vec(cloud, vec_for_index.at(0), vec_for_index.at(1), vec_for_index.at(2), vec_for_index.at(3), vec_for_index.at(4), vec_for_index.at(5), vec_for_index.at(6), vec_for_index.at(7));
-            
-            float b_koef = (cloud.points.at(vec_for_index.at(6)).x * cloud.points.at(vec_for_index.at(vec_for_index.size()-1)).y - cloud.points.at(vec_for_index.at(6)).y * cloud.points.at(vec_for_index.at(vec_for_index.size()-1)).x) / (cloud.points.at(vec_for_index.at(6)).x - cloud.points.at(vec_for_index.at(vec_for_index.size()-1)).x);
+                flag_to_check_frame_right = false;
+                flag_to_check_flame_left = false;
 
+                schet_frame++;
+                cout << "KOLICH RAMOK --> " << schet_frame << endl;
 
-            //cout << "1 - " << vec_for_index.at(0) << ", " << vec_for_index.at(3) << endl;
-            //cout << "2 - " << vec_for_index.at(vec_for_index.size()-4) << ", " << vec_for_index.at(vec_for_index.size()-1) << endl;
-            cout << "KKK --> " << k_door << endl;
-            cout << "SR_KKK --> " << sr_k << endl;
-            cout << "RAZNIC_KKK --> " << k_door - sr_k << endl;
-            cout << "B_KOEF --> " << b_koef << endl;
-            cout << "DLINA DO 1 TOCH --> " << msg_first_lid.ranges.at(vec_for_index.at(vec_for_index.size()-1)) << endl;
-            cout << "UGOL 1 TOCH RADIAN --> " << msg_first_lid.angle_increment * vec_for_index.at(vec_for_index.size()-1) << endl;
-            cout << "UGOL 1 TOCH GRADUS --> " << (msg_first_lid.angle_increment * vec_for_index.at(vec_for_index.size()-1)) * 180 / M_PI << endl;
+                // Левый край рамки
+                func_point = calc_to_cloud(cut_laser, left_dot_i_frame);
+                cloud.points.push_back(func_point);
+                cout << "Levo i --> " << left_dot_i_frame << endl;
+                cout << "LEVO_TOCH - x -- > " << func_point.x << endl;
+                cout << "LEVO_TOCH - y -- > " << func_point.y << endl;
 
-            convert.publish(cloud); 
-            search_sys.publish(cloud_search_vec); 
+                // Правый край рамки
+                func_point = calc_to_cloud(cut_laser, right_dot_i_frame);
+                cloud.points.push_back(func_point);
+                cout << "Pravo i --> " << right_dot_i_frame << endl;
+                cout << "PRAVO_TOCH - x -- > " << func_point.x << endl;
+                cout << "PRAVO_TOCH - y -- > " << func_point.y << endl;
+
+                if (math_vec(cloud, 0, 1) >= 0.4 && math_vec(cloud, 0, 1) <= 0.85) { cout << "STOLB --> " << math_vec(cloud, 0, 1) << endl; mid_pt_flag = false; }
+                if (math_vec(cloud, 0, 1) <= 0.4) { cout << "STOLB RAMKI --> " << math_vec(cloud, 0, 1) << endl; mid_pt_flag = false; }
+                if (math_vec(cloud, 0, 1) >= 0.85) { cout << "RAMKA --> " << math_vec(cloud, 0, 1) << endl; mid_pt_flag = true; }
+
+                // Центр рамки
+                if (mid_pt_flag == true) {
+                func_point = calc_mid_by_2p(cloud, 0, 1);
+                cloud.points.push_back(func_point);
+                cout << "MID_TOCH - x -- > " << func_point.x << endl;
+                cout << "MID_TOCH - y -- > " << func_point.y << endl;
+                }
+
+            }
+
+            curr_yaw.get_RPY_from_msg_quaternion(curr_position.pose.orientation);
+            cout << "KURSE --> " << curr_yaw.yaw() << endl;
+
+            frame_point.publish(cloud);
+            cut.publish(cut_laser);
         }
-
-
-
-
-
-
-        //if (iteration % 100 == 0) { // Было 100
-            loop_rate.sleep();
-            ros::spinOnce(); 
-            //iteration = 0;
-        //} 
-        //iteration++;
+        loop_rate.sleep();
+        ros::spinOnce(); 
     }
     return 0;
 }
