@@ -10,6 +10,8 @@ project(arrabot)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   laser_geometry
+  drone_msgs
+  custom_ros_utils
 )
 
 ## System dependencies are found with CMake's conventions
