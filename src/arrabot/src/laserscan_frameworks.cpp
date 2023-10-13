@@ -16,11 +16,11 @@ bool inf_done_at_least_once = false; // Ожидание поступления 
 bool flag_to_check_frame_right = false; // Флаг для определения правого края двери
 bool flag_to_check_flame_left = false; // Флаг для определения левого края двери
 
-EulerAngles curr_yaw;
+EulerAngles curr_yaw; // Текущий курс
 sensor_msgs::PointCloud cloud; // Содержит координаты: indx - 0 - Левый край двери; indx - 1 - Правый край двери; indx - 2 - Центр двери
 sensor_msgs::LaserScan msg_first_lid; // Используется в колбэке роса для получения значений с лидара на прямую
 sensor_msgs::LaserScan cut_laser; // Содержит лидарные точки с вырезанным сегментом по произвольным углам
-drone_msgs::Door door_info;
+drone_msgs::Door frame_info; // Содержит информацию о позициях и координатах при видимости рамки
 geometry_msgs::PoseStamped curr_position; // Координаты текущей позиции
 
 
@@ -34,15 +34,16 @@ geometry_msgs::Point32 calc_to_cloud(const sensor_msgs::LaserScan& msg_log, floa
     return log_point;
 }
 
-void pose_cd(const geometry_msgs::PoseStamped& msg) {
-    curr_position = msg;
-}
-
 // Колбэк роса для передачи на прямую значений с лидара
 void cd(const sensor_msgs::LaserScan& msg) {
    msg_first_lid = msg;
 
    if (!inf_done_at_least_once) inf_done_at_least_once = true;
+}
+
+// Колбэк роса для передачи текущей позиции дрона в пространстве
+void pose_cd(const geometry_msgs::PoseStamped& msg) {
+    curr_position = msg;
 }
 
 // Расчёт длины вектора
@@ -116,9 +117,7 @@ int main(int argc, char **argv) {
 
     cut_laser.header.frame_id = "laser";
     cloud.header.frame_id = "laser";
-
-    door_info.header.frame_id = "laser";
-    //door_info.header.stamp = ros::Time::now();
+    frame_info.header.frame_id = "laser";
 
 
     ros::NodeHandle n;
@@ -127,11 +126,13 @@ int main(int argc, char **argv) {
     ros::Subscriber sub2 = n.subscribe("/mavros/local_position/pose", 1000, pose_cd);
     ros::Publisher cut = n.advertise<sensor_msgs::LaserScan>("cut_laser_pub", 100); // Сегмент лазер скана
     ros::Publisher frame_point = n.advertise<sensor_msgs::PointCloud>("frame_lrm_points", 100); // Координаты точек рамки
+    ros::Publisher detected_frames = n.advertise<drone_msgs::Door>("detected_frames", 100); 
 
     ros::Rate loop_rate(5); 
 
     while (ros::ok()) {
 
+        frame_info.header.stamp = ros::Time::now();
         int schet_frame = 0;
         int right_dot_i_frame = 0;
         int left_dot_i_frame = 0;
@@ -194,19 +195,35 @@ int main(int argc, char **argv) {
                 if (math_vec(cloud, 0, 1) <= 0.4) { cout << "STOLB RAMKI --> " << math_vec(cloud, 0, 1) << endl; mid_pt_flag = false; }
                 if (math_vec(cloud, 0, 1) >= 0.85) { cout << "RAMKA --> " << math_vec(cloud, 0, 1) << endl; mid_pt_flag = true; }
 
-                // Центр рамки
                 if (mid_pt_flag == true) {
-                func_point = calc_mid_by_2p(cloud, 0, 1);
-                cloud.points.push_back(func_point);
-                cout << "MID_TOCH - x -- > " << func_point.x << endl;
-                cout << "MID_TOCH - y -- > " << func_point.y << endl;
+                    // Центр рамки
+                    func_point = calc_mid_by_2p(cloud, 0, 1);
+                    cloud.points.push_back(func_point);
+
+                    // Сохраняем координаты центра рамки в контейнер
+                    frame_info.position.x = func_point.x;
+                    frame_info.position.y = func_point.y;
+
+                    cout << "MID_TOCH - x -- > " << func_point.x << endl;
+                    cout << "MID_TOCH - y -- > " << func_point.y << endl;
+
+                    // Определяем текущий курс
+                    curr_yaw.get_RPY_from_msg_quaternion(curr_position.pose.orientation);
+                    cout << "KURSE --> " << curr_yaw.yaw() << endl;
+
+                    // Сохраняем текущий курс в контейнер
+                    frame_info.course = curr_yaw.yaw();
+
+                    // Сохраняем текущую позицию дрона в пространстве в контейнер
+                    frame_info.detection_position.x = curr_position.pose.position.x;
+                    frame_info.detection_position.y = curr_position.pose.position.y;
+                    frame_info.detection_position.z = curr_position.pose.position.z;
+
                 }
 
             }
 
-            curr_yaw.get_RPY_from_msg_quaternion(curr_position.pose.orientation);
-            cout << "KURSE --> " << curr_yaw.yaw() << endl;
-
+            detected_frames.publish(frame_info); // Отправляем контейнер в топик
             frame_point.publish(cloud);
             cut.publish(cut_laser);
         }
