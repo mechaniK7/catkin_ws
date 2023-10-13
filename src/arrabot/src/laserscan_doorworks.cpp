@@ -3,9 +3,13 @@
 #include <geometry_msgs/Twist.h>
 #include <sensor_msgs/LaserScan.h>
 #include <sensor_msgs/PointCloud.h> 
+#include <geometry_msgs/TwistStamped.h>
+#include <geometry_msgs/PoseStamped.h>
+#include <drone_msgs/Door.h>
 #include <math.h>
 #include <vector>
 #include <iostream>
+#include "euler_angles.hpp"
 
 using std::cout, std::endl;
 bool inf_done_at_least_once = false; // Ожидание поступления значений лазер скана
@@ -14,11 +18,13 @@ bool flag_to_check_door_left = false; // Флаг для определения 
 float koef_n; // Степень геометрической прогрессии
 float koef_door; // Коэффициент геометрической прогресии
 
+EulerAngles curr_yaw; // Текущий курс
 sensor_msgs::PointCloud cloud; // Содержит координаты: indx - 0 - Левый край двери; indx - 1 - Правый край двери; indx - 2 - Центр двери
 sensor_msgs::LaserScan msg_first_lid; // Используется в колбэке роса для получения значений с лидара на прямую
 sensor_msgs::LaserScan cut_laser; // Содержит лидарные точки с вырезанным сегментом по произвольным углам
 sensor_msgs::LaserScan updated_scan; // Содержит весь лазер скан с заполненными дверьми 
-
+drone_msgs::Door door_info; // Содержит информацию о позициях и координатах при видимости двери
+geometry_msgs::PoseStamped curr_position; // Координаты текущей позиции
 
 // Перевод лазера в облако точек
 geometry_msgs::Point32 calc_to_cloud(const sensor_msgs::LaserScan& msg_log, float log_i) { 
@@ -44,6 +50,11 @@ void cd(const sensor_msgs::LaserScan& msg) {
    msg_first_lid = msg;
 
    if (!inf_done_at_least_once) inf_done_at_least_once = true;
+}
+
+// Колбэк роса для передачи текущей позиции дрона в пространстве
+void pose_cd(const geometry_msgs::PoseStamped& msg) {
+    curr_position = msg;
 }
 
 // Заполнение пустот в двери
@@ -122,18 +133,22 @@ int main(int argc, char **argv) {
 
     cut_laser.header.frame_id = "laser";
     cloud.header.frame_id = "laser";
+    door_info.header.frame_id = "laser";
 
     ros::NodeHandle n;
 
     ros::Subscriber sub = n.subscribe("scan", 1000, cd); // Подписчик на лазер скан
+    ros::Subscriber sub2 = n.subscribe("/mavros/local_position/pose", 1000, pose_cd);
     ros::Publisher cut = n.advertise<sensor_msgs::LaserScan>("cut_laser_pub", 100); // Сегмент лазер скана
     ros::Publisher fill_scan = n.advertise<sensor_msgs::LaserScan>("filling_scan", 100); // Лазер скан с зарисованной дверью
     ros::Publisher door_point = n.advertise<sensor_msgs::PointCloud>("door_lrm_points", 100); // Координаты точек двери
+    ros::Publisher detected_doors = n.advertise<drone_msgs::Door>("detected_doors", 100); 
 
     ros::Rate loop_rate(5); 
 
     while (ros::ok()) {
 
+        door_info.header.stamp = ros::Time::now();
         int schet_door = 0;
         int right_dot_i_door = 0;
         int left_dot_i_door = 0;
@@ -196,8 +211,25 @@ int main(int argc, char **argv) {
                 // Центр двери
                 func_point = calc_mid_by_2p(cloud, 0, 1);
                 cloud.points.push_back(func_point);
+
+                // Сохраняем координаты центра двери в контейнер
+                door_info.position.x = func_point.x;
+                door_info.position.y = func_point.y;
+
                 cout << "MID_TOCH - x -- > " << func_point.x << endl;
                 cout << "MID_TOCH - y -- > " << func_point.y << endl;
+
+                // Определяем текущий курс
+                curr_yaw.get_RPY_from_msg_quaternion(curr_position.pose.orientation);
+                cout << "KURSE --> " << curr_yaw.yaw() << endl;
+
+                // Сохраняем текущий курс в контейнер
+                door_info.course = curr_yaw.yaw();
+                
+                // Сохраняем текущую позицию дрона в пространстве в контейнер
+                door_info.detection_position.x = curr_position.pose.position.x;
+                door_info.detection_position.y = curr_position.pose.position.y;
+                door_info.detection_position.z = curr_position.pose.position.z;
 
                 // // Считаем все коеффициенты по формулам
                 // ko = updated_scan.ranges.at(right_dot_i_door);
@@ -223,7 +255,8 @@ int main(int argc, char **argv) {
                 ROS_INFO_STREAM(right_dot_i_door << left_dot_i_door);
 
             }
-            fill_scan.publish(updated_scan);
+            detected_doors.publish(door_info); // Отправляем контейнер в топик
+            fill_scan.publish(updated_scan); 
             door_point.publish(cloud);
             cut.publish(cut_laser);
         }
