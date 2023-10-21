@@ -137,9 +137,10 @@ include_directories(
 add_executable(scanV1 src/arrabot_node.cpp)
 add_executable(sort src/arrabot_node2.cpp)
 add_executable(laserscan_doorworks src/laserscan_doorworks.cpp)
+add_executable(laserscan_frameworks src/laserscan_frameworks.cpp)
 add_executable(test_new src/test_new.cpp)
-add_executable(test_2 src/test_2.cpp)
 add_executable(diff_test_1 src/diff_test_1.cpp)
+add_executable(rotate_around_pillar src/rotate_around_pillar.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -161,13 +162,16 @@ target_link_libraries(sort
 target_link_libraries(laserscan_doorworks
   ${catkin_LIBRARIES}
 )
+target_link_libraries(laserscan_frameworks
+  ${catkin_LIBRARIES}
+)
 target_link_libraries(test_new
   ${catkin_LIBRARIES}
 )
-target_link_libraries(test_2
+target_link_libraries(diff_test_1
   ${catkin_LIBRARIES}
 )
-target_link_libraries(diff_test_1
+target_link_libraries(rotate_around_pillar
   ${catkin_LIBRARIES}
 )
 
