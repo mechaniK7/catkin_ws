@@ -191,7 +191,17 @@ int main(int argc, char **argv) {
                 cout << "PRAVO_TOCH - x -- > " << func_point.x << endl;
                 cout << "PRAVO_TOCH - y -- > " << func_point.y << endl;
 
-                if (math_vec(cloud, 0, 1) >= 0.4 && math_vec(cloud, 0, 1) <= 0.85) { cout << "STOLB --> " << math_vec(cloud, 0, 1) << endl; mid_pt_flag = false; }
+                if (math_vec(cloud, 0, 1) >= 0.4 && math_vec(cloud, 0, 1) <= 0.85) {
+                    cout << "STOLB --> " << math_vec(cloud, 0, 1) << endl; 
+                    mid_pt_flag = false; 
+
+                    // Сохраняем угол на индексе точки в центре рамки в контейнер
+                    frame_info.local_angle = ((left_dot_i_frame + right_dot_i_frame) / 2) * cut_laser.angle_increment;
+                    frame_info.is_pillar.data = true;
+                    
+                }
+                else frame_info.is_pillar.data = false;
+
                 if (math_vec(cloud, 0, 1) <= 0.4) { cout << "STOLB RAMKI --> " << math_vec(cloud, 0, 1) << endl; mid_pt_flag = false; }
                 if (math_vec(cloud, 0, 1) >= 0.85) { cout << "RAMKA --> " << math_vec(cloud, 0, 1) << endl; mid_pt_flag = true; }
 
@@ -222,6 +232,7 @@ int main(int argc, char **argv) {
                 }
 
             }
+            else frame_info.is_pillar.data = false;
 
             detected_frames.publish(frame_info); // Отправляем контейнер в топик
             frame_point.publish(cloud);
