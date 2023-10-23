@@ -202,7 +202,7 @@ int main(int argc, char **argv) {
                 }
                 else frame_info.is_pillar.data = false;
 
-                if (math_vec(cloud, 0, 1) <= 0.4) { cout << "STOLB RAMKI --> " << math_vec(cloud, 0, 1) << endl; mid_pt_flag = false; }
+                if (math_vec(cloud, 0, 1) <= 0.4) { cout << "STOLB RAMKI --> " << math_vec(cloud, 0, 1) << endl; mid_pt_flag = true; }
                 if (math_vec(cloud, 0, 1) >= 0.85) { cout << "RAMKA --> " << math_vec(cloud, 0, 1) << endl; mid_pt_flag = true; }
 
                 if (mid_pt_flag == true) {
